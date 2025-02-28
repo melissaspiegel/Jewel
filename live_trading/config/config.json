@@ -1,0 +1,29 @@
+{
+  "api_keys": {
+    "exchange_name": "EXCHANGE_NAME",
+    "api_key": "YOUR_API_KEY_HERE",
+    "api_secret": "YOUR_API_SECRET_HERE"
+  },
+  "trading": {
+    "starting_balance": 100,
+    "max_position_size_percent": 95,
+    "fee_percentage": 0.1,
+    "take_profit_percentage": 2.5,
+    "stop_loss_percentage": 1.5
+  },
+  "risk_management": {
+    "max_daily_trades": 5,
+    "max_daily_drawdown_percent": 5,
+    "trading_enabled": false
+  },
+  "notifications": {
+    "email": "",
+    "enable_trade_notifications": true,
+    "enable_error_notifications": true
+  },
+  "advanced": {
+    "paper_trading_mode": true,
+    "trading_pairs": ["BTC/USDT"],
+    "check_interval_seconds": 60
+  }
+}
