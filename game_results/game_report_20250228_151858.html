@@ -1,0 +1,67 @@
+
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Bitcoin Trading Game Results</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; background-color: #f0f0f0; }
+                .header { background-color: #4CAF50; color: white; padding: 20px; text-align: center; }
+                .lose { background-color: #e74c3c; }
+                .summary { background-color: white; padding: 20px; border-radius: 5px; margin: 20px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+                .good { color: green; font-weight: bold; }
+                .bad { color: red; font-weight: bold; }
+                .charts { display: flex; flex-direction: column; margin: 20px 0; }
+                .chart { margin: 20px 0; background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+                h1, h2 { color: #333; }
+                .result { font-size: 24px; font-weight: bold; margin: 20px 0; }
+                .win { color: green; }
+                .lose { color: red; }
+            </style>
+        </head>
+        <body>
+            <div class="header lose">
+                <h1>Bitcoin Trading Game Results</h1>
+                <p>Game completed on 2025-02-28 15:18:58</p>
+            </div>
+            
+            <div class="summary">
+                <div class="result lose">
+                    ❌ GAME OVER. YOU LOSE.
+                </div>
+                <h2>Game Summary</h2>
+                <p><strong>Starting Fake Money:</strong> $100.00</p>
+                <p><strong>Final Cash:</strong> $114.00</p>
+                <p><strong>Final BTC Holdings:</strong> 0.00000000 BTC ($0.00)</p>
+                <p><strong>Final Portfolio Value:</strong> $114.00</p>
+                <p><strong>Profit/Loss:</strong> <span class="good">$14.00 (14.00%)</span></p>
+                <p><strong>Win Target:</strong> 15.0%</p>
+            </div>
+            
+            <div class="charts">
+                <div class="chart">
+                    <h2>Portfolio Performance</h2>
+                    <img src="game_performance_20250228_151858.png" alt="Game Performance" width="100%">
+                </div>
+                
+                <div class="chart">
+                    <h2>Bitcoin Price</h2>
+                    <img src="game_price_20250228_151858.png" alt="Game Price" width="100%">
+                </div>
+            </div>
+            
+            <div class="summary">
+                <h2>Game Statistics</h2>
+                <p><strong>Game Duration:</strong> 53 rounds</p>
+                <p><strong>Highest Portfolio Value:</strong> $114.00</p>
+                <p><strong>Lowest Portfolio Value:</strong> $99.91</p>
+                <p><strong>Bitcoin Price Range:</strong> $81573.15 - $85344.40</p>
+            </div>
+            
+            <div class="summary">
+                <h2>Note</h2>
+                <p>This was a game with fake money - no real cryptocurrency was traded!</p>
+                <p>Data source: Real Bitcoin price data from CoinGecko API</p>
+            </div>
+        </body>
+        </html>
+        

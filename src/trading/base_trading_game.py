@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-TRADING GAME - Play with fake money and real Bitcoin price data
-No real trading involved - just for fun and learning!
+BASE TRADING GAME - Core functionality for trading games and real money trading
 """
 import os
 import sys
@@ -11,7 +10,6 @@ import requests
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-import argparse
 import logging
 import random
 import matplotlib.pyplot as plt
@@ -22,22 +20,22 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler(f"data/game_session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+        logging.FileHandler(f"data/session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
     ]
 )
 logger = logging.getLogger(__name__)
 
 # Import system paths
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from strategies.micro_strategy import MicroStrategy
 
-class TradingGame:
-    """Trading game with fake money and real price data"""
+class BaseTradingGame:
+    """Base class for trading games and real money trading"""
     
     def __init__(self, starting_balance=100, use_real_prices=True):
-        """Initialize the trading game"""
+        """Initialize the trading game/trader"""
         self.starting_balance = starting_balance
-        self.fake_money = starting_balance
+        self.balance = starting_balance
         self.btc_holdings = 0
         self.fee = 0.001  # 0.1% trading fee
         self.current_price = 0
@@ -46,18 +44,14 @@ class TradingGame:
         self.balance_history = []
         self.use_real_prices = use_real_prices
         
-        # Set win conditions
-        self.win_percentage = 15  # Win when you make 15% profit
-        self.time_limit = 60  # Game length in seconds
+        # Set win conditions (for game) or targets (for trading)
+        self.profit_target = 15  # Target percentage profit
+        self.time_limit = 60  # Session length in seconds
         
         # Load or create price data
         self.price_data = self.load_price_data()
-        if use_real_prices:
-            logger.info("🌐 Using REAL Bitcoin price data (but with FAKE money!)")
-        else:
-            logger.info("🎮 Using simulated price data")
         
-        # Strategy parameters for the game
+        # Strategy parameters
         self.strategy_params = {
             "fast_ma_period": 4,
             "slow_ma_period": 12,
@@ -70,27 +64,18 @@ class TradingGame:
             "bollinger_stddev": 1.8
         }
         
-        # Initialize the game strategy
+        # Initialize the strategy
         self.strategy = MicroStrategy(
             self.strategy_params, 
             self.price_data, 
-            balance=self.fake_money,
+            balance=self.balance,
             btc_holdings=self.btc_holdings
         )
-        
-        # Display game instructions
-        logger.info("=" * 60)
-        logger.info("🎮 WELCOME TO THE BITCOIN TRADING GAME 🎮")
-        logger.info("=" * 60)
-        logger.info("This is a GAME with FAKE money - no real trading!")
-        logger.info(f"Starting with ${self.fake_money:.2f} fake dollars")
-        logger.info(f"Goal: Make ${self.win_percentage}% profit before time runs out!")
-        logger.info("=" * 60)
-        
+    
     def load_price_data(self):
-        """Load Bitcoin price data for the game"""
+        """Load Bitcoin price data"""
         # Try to use existing data file first
-        data_file = "data/btc_game_data.csv"
+        data_file = "data/btc_price_data.csv"
         
         if os.path.exists(data_file):
             data = pd.read_csv(data_file)
@@ -220,7 +205,7 @@ class TradingGame:
             volatility = self.current_price * 0.001  # 0.1% volatility
             price_change = np.random.normal(0, volatility)
             
-            # Add a slight upward bias to make the game more fun
+            # Add a slight bias
             if random.random() < 0.55:  # 55% chance of going up
                 price_change = abs(price_change)
             
@@ -229,8 +214,15 @@ class TradingGame:
         self.price_history.append((datetime.now(), self.current_price))
         return self.current_price
     
+    def execute_trade(self, action, amount=None):
+        """
+        Execute a trade action (buy/sell)
+        To be implemented by derived classes
+        """
+        raise NotImplementedError("This method must be implemented by derived classes")
+    
     def execute_game_logic(self):
-        """Run one step of the game logic"""
+        """Run one step of the trading logic"""
         # Update price
         btc_price = self.update_price()
         
@@ -278,42 +270,43 @@ class TradingGame:
             # Recovery mode - when down more than 5%
             logger.info("💡 Using recovery strategy")
             if self.strategy.btc_holdings > 0:
-                # Force a profitable sell
-                sell_price = max(
-                    btc_price, 
-                    self.strategy.last_buy_price * 1.03  # 3% profit target
-                )
-                self.strategy.sell_position(sell_price)
+                # Force a sell that aims for profit
+                self.execute_trade('sell', self.btc_holdings)
             else:
                 # Force a buy at current price
                 if self.strategy.balance >= 10:  # Ensure we have some money
-                    self.strategy.trade_amount = self.strategy.balance * 0.95
-                    self.strategy.buy_position(btc_price)
+                    trade_amount = self.strategy.balance * 0.95
+                    self.execute_trade('buy', trade_amount / btc_price)
         else:
             # Normal strategy
-            self.strategy.evaluate_orders(timestamp, current_data)
-        
-        # Update game state from strategy
-        self.fake_money = self.strategy.balance
-        self.btc_holdings = self.strategy.btc_holdings
+            action = self.strategy.evaluate_orders(timestamp, current_data)
+            if action == 'buy':
+                trade_amount = self.strategy.trade_amount / btc_price
+                self.execute_trade('buy', trade_amount)
+            elif action == 'sell':
+                self.execute_trade('sell', self.btc_holdings)
         
         # Calculate total portfolio value
-        total_value = self.fake_money + (self.btc_holdings * btc_price)
+        total_value = self.balance + (self.btc_holdings * btc_price)
         profit_pct = (total_value / self.starting_balance - 1) * 100
         
         # Record balance history
-        self.balance_history.append((datetime.now(), self.fake_money, self.btc_holdings, btc_price, total_value))
+        self.balance_history.append((datetime.now(), self.balance, self.btc_holdings, btc_price, total_value))
         
-        # Log game status
-        logger.info(f"💰 Game Status: ${self.fake_money:.2f} + {self.btc_holdings:.8f} BTC (${self.btc_holdings * btc_price:.2f}) = ${total_value:.2f}")
-        logger.info(f"📈 BTC Price: ${btc_price:.2f} | Profit: {profit_pct:.2f}%")
+        # Log status
+        self.log_status(total_value, profit_pct)
         
         return profit_pct
     
-    def generate_game_report(self):
-        """Generate a game report with charts and statistics"""
+    def log_status(self, total_value, profit_pct):
+        """Log the current status"""
+        logger.info(f"💰 Status: ${self.balance:.2f} + {self.btc_holdings:.8f} BTC (${self.btc_holdings * self.current_price:.2f}) = ${total_value:.2f}")
+        logger.info(f"📈 BTC Price: ${self.current_price:.2f} | Profit: {profit_pct:.2f}%")
+    
+    def generate_report(self):
+        """Generate a report with charts and statistics"""
         # Create results directory
-        results_dir = "game_results"
+        results_dir = "results"
         os.makedirs(results_dir, exist_ok=True)
         
         # Generate timestamp for filenames
@@ -330,45 +323,47 @@ class TradingGame:
         plt.plot(range(len(balance_df)), balance_df["total_value"], label="Portfolio Value")
         plt.plot(range(len(balance_df)), balance_df["cash"], label="Cash")
         plt.axhline(y=self.starting_balance, color='r', linestyle='-', label="Starting Balance")
-        plt.title("Game Performance")
-        plt.xlabel("Game Time")
+        plt.title("Performance")
+        plt.xlabel("Time")
         plt.ylabel("Value ($)")
         plt.legend()
         plt.grid(True)
-        balance_chart = os.path.join(results_dir, f"game_performance_{timestamp}.png")
+        balance_chart = os.path.join(results_dir, f"performance_{timestamp}.png")
         plt.savefig(balance_chart)
         
         # Price chart
         plt.figure(figsize=(10, 6))
         plt.plot(range(len(balance_df)), balance_df["price"])
-        plt.title("Bitcoin Price During Game")
-        plt.xlabel("Game Time")
+        plt.title("Bitcoin Price")
+        plt.xlabel("Time")
         plt.ylabel("BTC Price ($)")
         plt.grid(True)
-        price_chart = os.path.join(results_dir, f"game_price_{timestamp}.png")
+        price_chart = os.path.join(results_dir, f"price_{timestamp}.png")
         plt.savefig(price_chart)
         
-        # Calculate final game statistics
-        final_value = self.fake_money + (self.btc_holdings * self.current_price)
+        # Calculate final statistics
+        final_value = self.balance + (self.btc_holdings * self.current_price)
         profit = final_value - self.starting_balance
         profit_pct = (profit / self.starting_balance) * 100
-        game_result = "WIN" if profit_pct >= self.win_percentage else "LOSE"
+        result = "SUCCESS" if profit_pct >= self.profit_target else "MISSED TARGET"
         
-        # Generate HTML game report
-        html_file = os.path.join(results_dir, f"game_report_{timestamp}.html")
-        
-        # Determine profit/loss class
+        # Generate HTML report
+        html_file = os.path.join(results_dir, f"report_{timestamp}.html")
         profit_class = "good" if profit >= 0 else "bad"
+        
+        # Get specific report details
+        report_title = self.get_report_title()
+        report_details = self.get_report_details()
         
         html = f"""
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Bitcoin Trading Game Results</title>
+            <title>{report_title}</title>
             <style>
                 body {{ font-family: Arial, sans-serif; margin: 20px; background-color: #f0f0f0; }}
                 .header {{ background-color: #4CAF50; color: white; padding: 20px; text-align: center; }}
-                .lose {{ background-color: #e74c3c; }}
+                .negative {{ background-color: #e74c3c; }}
                 .summary {{ background-color: white; padding: 20px; border-radius: 5px; margin: 20px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }}
                 .good {{ color: green; font-weight: bold; }}
                 .bad {{ color: red; font-weight: bold; }}
@@ -376,53 +371,54 @@ class TradingGame:
                 .chart {{ margin: 20px 0; background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }}
                 h1, h2 {{ color: #333; }}
                 .result {{ font-size: 24px; font-weight: bold; margin: 20px 0; }}
-                .win {{ color: green; }}
-                .lose {{ color: red; }}
+                .success {{ color: green; }}
+                .missed {{ color: orange; }}
+                .failed {{ color: red; }}
             </style>
         </head>
         <body>
-            <div class="header {game_result.lower()}">
-                <h1>Bitcoin Trading Game Results</h1>
-                <p>Game completed on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <div class="header {result.lower()}">
+                <h1>{report_title}</h1>
+                <p>Completed on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
             </div>
             
             <div class="summary">
-                <div class="result {game_result.lower()}">
-                    {"🏆 CONGRATULATIONS! YOU WIN!" if game_result == "WIN" else "❌ GAME OVER. YOU LOSE."}
+                <div class="result {result.lower()}">
+                    {self.get_result_message(profit_pct)}
                 </div>
-                <h2>Game Summary</h2>
-                <p><strong>Starting Fake Money:</strong> ${self.starting_balance:.2f}</p>
-                <p><strong>Final Cash:</strong> ${self.fake_money:.2f}</p>
+                <h2>Summary</h2>
+                <p><strong>Starting Balance:</strong> ${self.starting_balance:.2f}</p>
+                <p><strong>Final Cash:</strong> ${self.balance:.2f}</p>
                 <p><strong>Final BTC Holdings:</strong> {self.btc_holdings:.8f} BTC (${self.btc_holdings * self.current_price:.2f})</p>
                 <p><strong>Final Portfolio Value:</strong> ${final_value:.2f}</p>
                 <p><strong>Profit/Loss:</strong> <span class="{profit_class}">${profit:.2f} ({profit_pct:.2f}%)</span></p>
-                <p><strong>Win Target:</strong> {self.win_percentage}%</p>
+                <p><strong>Target:</strong> {self.profit_target}%</p>
             </div>
             
             <div class="charts">
                 <div class="chart">
                     <h2>Portfolio Performance</h2>
-                    <img src="game_performance_{timestamp}.png" alt="Game Performance" width="100%">
+                    <img src="performance_{timestamp}.png" alt="Performance" width="100%">
                 </div>
                 
                 <div class="chart">
                     <h2>Bitcoin Price</h2>
-                    <img src="game_price_{timestamp}.png" alt="Game Price" width="100%">
+                    <img src="price_{timestamp}.png" alt="Price" width="100%">
                 </div>
             </div>
             
             <div class="summary">
-                <h2>Game Statistics</h2>
-                <p><strong>Game Duration:</strong> {len(self.balance_history)} rounds</p>
+                <h2>Statistics</h2>
+                <p><strong>Duration:</strong> {len(self.balance_history)} rounds</p>
                 <p><strong>Highest Portfolio Value:</strong> ${max([b[4] for b in self.balance_history]):.2f}</p>
                 <p><strong>Lowest Portfolio Value:</strong> ${min([b[4] for b in self.balance_history]):.2f}</p>
                 <p><strong>Bitcoin Price Range:</strong> ${min([b[3] for b in self.balance_history]):.2f} - ${max([b[3] for b in self.balance_history]):.2f}</p>
             </div>
             
             <div class="summary">
-                <h2>Note</h2>
-                <p>This was a game with fake money - no real cryptocurrency was traded!</p>
+                <h2>Details</h2>
                 <p>Data source: {"Real Bitcoin price data from CoinGecko API" if self.use_real_prices else "Simulated price data"}</p>
+                {report_details}
             </div>
         </body>
         </html>
@@ -432,17 +428,36 @@ class TradingGame:
         with open(html_file, "w") as f:
             f.write(html)
         
-        logger.info(f"🎮 Game report generated: {html_file}")
+        logger.info(f"📊 Report generated: {html_file}")
         return html_file
     
-    def run_game(self):
-        """Run the complete trading game"""
-        # Display start message
-        logger.info("🎮 GAME STARTING NOW! Good luck!")
-        logger.info(f"🎯 Win target: Make {self.win_percentage}% profit")
-        logger.info(f"⏱️ Time limit: {self.time_limit} seconds")
+    def get_report_title(self):
+        """Return title for the report - to be overridden by subclasses"""
+        return "Bitcoin Trading Report"
+    
+    def get_report_details(self):
+        """Return additional details for the report - to be overridden by subclasses"""
+        return ""
+    
+    def get_result_message(self, profit_pct):
+        """Return result message based on profit percentage - to be overridden by subclasses"""
+        if profit_pct >= self.profit_target:
+            return f"🏆 SUCCESS! Target reached with {profit_pct:.2f}% profit!"
+        elif profit_pct >= 0:
+            return f"📈 POSITIVE! Made {profit_pct:.2f}% profit but didn't reach target of {self.profit_target}%"
+        else:
+            return f"📉 NEGATIVE! Lost {abs(profit_pct):.2f}%"
+    
+    def display_instructions(self):
+        """Display instructions - to be overridden by subclasses"""
+        pass
+    
+    def run(self):
+        """Run the complete trading session"""
+        # Display instructions
+        self.display_instructions()
         
-        # Start game timer
+        # Start timer
         start_time = time.time()
         end_time = start_time + self.time_limit
         
@@ -451,76 +466,53 @@ class TradingGame:
         logger.info(f"💲 Starting BTC price: ${self.current_price:.2f}")
         
         try:
-            # Game loop
+            # Main loop
             while time.time() < end_time:
-                # Execute game logic
+                # Execute trading logic
                 profit_pct = self.execute_game_logic()
                 
-                # Check win condition
-                if profit_pct >= self.win_percentage:
-                    logger.info(f"🎯 WIN! You reached your profit target of {self.win_percentage}%")
-                    logger.info(f"🏆 GAME COMPLETE! You made ${profit_pct:.2f}% profit!")
+                # Check target reached
+                if profit_pct >= self.profit_target:
+                    logger.info(f"🎯 Target reached! You made {profit_pct:.2f}% profit")
                     break
                 
-                # Game tick delay
+                # Tick delay
                 time.sleep(1)
                 
                 # Show remaining time every 5 seconds
                 time_remaining = int(end_time - time.time())
-                if time_remaining % 5 == 0:
+                if time_remaining % 5 == 0 and time_remaining > 0:
                     logger.info(f"⏱️ Time remaining: {time_remaining} seconds")
             
             # Check if time ran out
             if time.time() >= end_time:
-                total_value = self.fake_money + (self.btc_holdings * self.current_price)
+                total_value = self.balance + (self.btc_holdings * self.current_price)
                 profit_pct = (total_value / self.starting_balance - 1) * 100
                 
-                if profit_pct >= self.win_percentage:
-                    logger.info(f"🎯 WIN! You reached your profit target of {self.win_percentage}%")
+                if profit_pct >= self.profit_target:
+                    logger.info(f"🎯 Target reached with {profit_pct:.2f}% profit!")
                 else:
-                    logger.info(f"⏱️ Time's up! You made {profit_pct:.2f}% profit")
-                    logger.info(f"❌ You didn't reach the {self.win_percentage}% profit target!")
+                    logger.info(f"⏱️ Time's up! Made {profit_pct:.2f}% profit")
+                    if self.profit_target > 0:
+                        logger.info(f"Target was {self.profit_target}%")
             
             # Generate final report
-            report_file = self.generate_game_report()
+            report_file = self.generate_report()
             
-            # Final game message
+            # Final message
             logger.info("=" * 60)
-            logger.info("🎮 GAME OVER! Thanks for playing! 🎮")
+            logger.info("🏁 SESSION COMPLETE!")
             logger.info(f"📊 Final report: {report_file}")
             logger.info("=" * 60)
             
-            return profit_pct >= self.win_percentage
+            return profit_pct >= self.profit_target
             
         except KeyboardInterrupt:
-            logger.info("\n⏹️ Game stopped by player")
-            self.generate_game_report()
+            logger.info("\n⏹️ Stopped by user")
+            self.generate_report()
             return False
         except Exception as e:
-            logger.error(f"❌ Game error: {e}")
+            logger.error(f"❌ Error: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return False
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Bitcoin Trading Game - Play with fake money!")
-    parser.add_argument("--balance", type=float, default=100.0, help="Starting fake balance (default: $100)")
-    parser.add_argument("--target", type=float, default=15.0, help="Win percentage target (default: 15%%)")
-    parser.add_argument("--time", type=int, default=60, help="Game time limit in seconds (default: 60)")
-    parser.add_argument("--simulated", action="store_true", help="Use simulated price data instead of real prices")
-    args = parser.parse_args()
-    
-    # Create game instance
-    game = TradingGame(
-        starting_balance=args.balance,
-        use_real_prices=not args.simulated
-    )
-    
-    # Set custom game parameters
-    game.win_percentage = args.target
-    game.time_limit = args.time
-    
-    # Run the game
-    game.run_game()
-
-if __name__ == "__main__":
-    main()

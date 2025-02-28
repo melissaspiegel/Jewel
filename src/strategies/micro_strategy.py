@@ -1,6 +1,11 @@
 import pandas as pd
-import talib
 import logging
+
+# Use helper module for talib import
+try:
+    import talib
+except ImportError:
+    from strategies.talib_helper import talib
 
 # Logger Setup
 log = logging.getLogger(__name__)

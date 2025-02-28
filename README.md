@@ -39,6 +39,7 @@ This Bitcoin Trading Game is a risk-free way to experience cryptocurrency tradin
    source venv/bin/activate
    pip install -r requirements.txt
    pip install numpy ccxt pandas
+   pip install TA-Lib
    ```
 
 ### Running the Game
