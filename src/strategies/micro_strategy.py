@@ -71,29 +71,14 @@ class MicroStrategy:
             self.data["high"], self.data["low"], self.data["close"], 
             fastk_period=10, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0
         )
-        
-        # Fill missing values
-        self.data["fastMA"].fillna(method='ffill', inplace=True)
-        self.data["slowMA"].fillna(method='ffill', inplace=True)
-        self.data["RSI"].fillna(method='ffill', inplace=True)
-        self.data["MACD"].fillna(method='ffill', inplace=True)
-        self.data["MACD_signal"].fillna(method='ffill', inplace=True)
-        self.data["upper_band"].fillna(method='ffill', inplace=True)
-        self.data["middle_band"].fillna(method='ffill', inplace=True)
-        self.data["lower_band"].fillna(method='ffill', inplace=True)
-        self.data["stoch_k"].fillna(method='ffill', inplace=True)
-        self.data["stoch_d"].fillna(method='ffill', inplace=True)
+            
+        # Forward-fill for these columns
+        for col in ["slowMA", "RSI", "MACD", "MACD_signal", "upper_band", "middle_band", "lower_band", "stoch_k", "stoch_d"]:
+            self.data[col] = self.data[col].ffill()
 
-        self.data["fastMA"].fillna(method='bfill', inplace=True)
-        self.data["slowMA"].fillna(method='bfill', inplace=True)
-        self.data["RSI"].fillna(method='bfill', inplace=True)
-        self.data["MACD"].fillna(method='bfill', inplace=True)
-        self.data["MACD_signal"].fillna(method='bfill', inplace=True)
-        self.data["upper_band"].fillna(method='bfill', inplace=True)
-        self.data["middle_band"].fillna(method='bfill', inplace=True)
-        self.data["lower_band"].fillna(method='bfill', inplace=True)
-        self.data["stoch_k"].fillna(method='bfill', inplace=True)
-        self.data["stoch_d"].fillna(method='bfill', inplace=True)
+        # Backward-fill for all columns (including fastMA)
+        for col in ["fastMA", "slowMA", "RSI", "MACD", "MACD_signal", "upper_band", "middle_band", "lower_band", "stoch_k", "stoch_d"]:
+            self.data[col] = self.data[col].bfill()
 
     def populate_signals(self):
         """Define trading signals optimized for micro accounts"""
