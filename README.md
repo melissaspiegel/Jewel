@@ -2,7 +2,6 @@
 
 A fun, educational simulation where you can practice Bitcoin trading strategies with fake money and real price data!
 
-![Trading Game](docs/trading_game_screenshot.png)
 
 ## 📝 Overview
 
