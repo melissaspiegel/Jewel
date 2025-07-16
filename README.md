@@ -28,7 +28,7 @@ This Bitcoin Trading Game is a risk-free way to experience cryptocurrency tradin
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/micro.git
+   git clone https://github.com/melissaspiegel/jewel.git
    cd micro
    ```
 
